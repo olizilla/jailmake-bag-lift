@@ -22,8 +22,11 @@ unsigned long time;
 unsigned long lastTime;
 unsigned long diffTime;
 
-//boolean running = true;
-boolean running = false;
+int bottomSwitchPin = 3;
+int topSwitchPin = 6;
+
+//boolean running = false;
+boolean running = true;
 
 // FORWARD = 1, BACKEWARD = 2, RELEASE = 4 
 int dir = BACKWARD; 
@@ -34,19 +37,33 @@ void setup() {
   Serial.begin(9600);           // set up Serial library at 9600 bps
   motor.setSpeed(0);            // set the speed to 200/255
   logState();
+  
+  pinMode(topSwitchPin, INPUT);
+  pinMode(bottomSwitchPin, INPUT);
 }
  
 void loop() {
   if(running){
-     easy();
+//     easy();
+    getSwitches();
+    
   }  
 }
- 
-void easy() {
+
+void getSwitches() {
+  int bottomState = digitalRead(bottomSwitchPin);
+  int topState = digitalRead(topSwitchPin);
+
+  Serial.print("bot: ");
+  Serial.print(bottomState);
+  Serial.print(" top: ");
+  Serial.print(topState);
+  Serial.println();
   
-  // At rest.    
-  if (spd <= minSpd) {
-    motor.run(RELEASE);
+  delay(500);
+}
+
+void stopPauseReverse() {
     Serial.print("Stop:     ");
     logState();
     acceleration = acceleration * -1; // flip it.
@@ -56,11 +73,13 @@ void easy() {
       dir = FORWARD;
     }
     delay(rest);
+    
     motor.run(dir);
     Serial.print("Start:    ");
-    logState();    
-  // At max speed
-  } else if (spd >= maxSpd) { 
+    logState();
+}
+
+void runAtMax(){
     spd = maxSpd;
     acceleration = acceleration * -1; // flip it.
     Serial.print("Max start:");
@@ -68,6 +87,17 @@ void easy() {
     delay(duration);
     Serial.print("Max stop: ");
     logState();
+}
+ 
+void easy() {
+  
+  // At rest.    
+  if (spd <= minSpd) {
+    stopPauseReverse();
+    
+  // At max speed
+  } else if (spd >= maxSpd) { 
+    runAtMax();
     
   // accelerating / decelerating
   } else { 

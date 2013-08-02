@@ -11,102 +11,139 @@ Graccefully spin up, run, spin down and reverse a motor
  
 AF_DCMotor motor(2, MOTOR12_64KHZ); // create motor #2, 64KHz pwm
  
+// FORWARD = 1, BACKEWARD = 2, RELEASE = 4 
+const int UP = 1;
+const int DOWN = 2;
+const int STOP = 4;
+ 
 int spd = 0;
 int minSpd = 0;
 int maxSpd = 255;
 int acceleration = 1;
 int loopDelay = 50;
-int rest = 3000;
-int duration = 4000;
+int pause = 3000;
+unsigned long duration = 4000;
 unsigned long time;
 unsigned long lastTime;
 unsigned long diffTime;
+unsigned long maxStarted;
 
-int bottomSwitchPin = 3;
 int topSwitchPin = 6;
+int bottomSwitchPin = 3;
+int lastSwitch; // which pin fired last.
 
-//boolean running = false;
+// INITIAL DIRECTION AND SHOULD WE BE RUNNING. TODO: we need a switch to stop and reset.
+int dir = UP; 
 boolean running = true;
 
-// FORWARD = 1, BACKEWARD = 2, RELEASE = 4 
-int dir = BACKWARD; 
-//int dir = FORWARD; 
- 
 void setup() {
   time = millis();
   Serial.begin(9600);           // set up Serial library at 9600 bps
   motor.setSpeed(0);            // set the speed to 200/255
-  logState();
   
   pinMode(topSwitchPin, INPUT);
   pinMode(bottomSwitchPin, INPUT);
+  
+  logState();
+  delay(2000);
+  logState();
 }
  
 void loop() {
+
   if(running){
-//     easy();
-    getSwitches();
     
+    checkSwitches();
+    
+    if (spd <= minSpd) {          // At rest.    
+      pauseThenReverse();         // Time to pause and reverse.
+      
+    } else if (spd >= maxSpd) {   // At max speed.
+      spd = maxSpd;    
+      
+      if(maxStarted == 0){     // We just got to maxSpeed so record the startTime.
+        maxStarted = millis();
+        
+        Serial.print("Max start: ");
+        logState();
+      }
+      
+      unsigned long currentMillis = millis();
+      if (currentMillis - maxStarted >= duration){  // time to start slowing down.
+          maxStarted = 0;
+          acceleration = acceleration * -1;         // flip accel to decel.
+          changeSpeed();
+    
+          Serial.print("Max stop:  ");
+          logState();          
+      }
+      
+    } else {                      // accelerating / decelerating
+      changeSpeed();
+      delay(loopDelay);
+    }
   }  
 }
 
-void getSwitches() {
-  int bottomState = digitalRead(bottomSwitchPin);
-  int topState = digitalRead(topSwitchPin);
-
-  Serial.print("bot: ");
-  Serial.print(bottomState);
-  Serial.print(" top: ");
-  Serial.print(topState);
-  Serial.println();
-  
-  delay(500);
-}
-
-void stopPauseReverse() {
-    Serial.print("Stop:     ");
-    logState();
-    acceleration = acceleration * -1; // flip it.
-    if (dir == FORWARD){
-      dir = BACKWARD;
-    } else {
-      dir = FORWARD;
-    }
-    delay(rest);
-    
-    motor.run(dir);
-    Serial.print("Start:    ");
-    logState();
-}
-
-void runAtMax(){
-    spd = maxSpd;
-    acceleration = acceleration * -1; // flip it.
-    Serial.print("Max start:");
-    logState();
-    delay(duration);
-    Serial.print("Max stop: ");
-    logState();
-}
- 
-void easy() {
-  
-  // At rest.    
-  if (spd <= minSpd) {
-    stopPauseReverse();
-    
-  // At max speed
-  } else if (spd >= maxSpd) { 
-    runAtMax();
-    
-  // accelerating / decelerating
-  } else { 
-    motor.setSpeed(spd);
-//    motor.run(dir);
-  }
-  
+void changeSpeed(){
   spd = constrain(spd + acceleration, minSpd, maxSpd);
-  delay(loopDelay);
+  motor.setSpeed(spd);
+}
+
+// Switches signal that we've gone as far as we can and so force a pause and reverse.
+void checkSwitches(){
+  checkSwitch(topSwitchPin, DOWN);
+  checkSwitch(bottomSwitchPin, UP);
+}
+
+// Switch helper method to reduce the boilerplate
+void checkSwitch(int pin, int newDirection) {
+  int state = digitalRead(pin);
+  if (state == 0){
+    
+    if (pin == lastSwitch){ return; } // ignore multiple fires of the same pin...
+
+    motor.run(STOP);
+    
+    lastSwitch = pin;
+    
+    Serial.print("Switching pin: ");
+    Serial.print(pin);
+    Serial.print(" new direction: ");
+    Serial.print(newDirection);
+    Serial.print(" ");
+    logState();
+    
+    pauseThenGo(newDirection); // this delays for `pause`
+  }
+}
+
+void pauseThenReverse() {
+    if (dir == UP) {
+      pauseThenGo(DOWN);
+    } else {
+      pauseThenGo(UP);
+    }
+}
+
+void pauseThenGo(int newDirection) {
+  motor.run(STOP);
+  
+  maxStarted = 0; // clean up just in case.
+  
+  Serial.print("Stop:     ");
+  logState();
+  
+  dir = newDirection;
+  acceleration = acceleration * -1; // flip accel to decel.
+  
+  delay(pause);
+  
+  changeSpeed();
+  motor.run(dir);
+  
+  Serial.print("Go:       ");
+  logState();
 }
 
 void logState(){

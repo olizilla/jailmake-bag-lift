@@ -12,11 +12,6 @@ Graccefully spin up, run, spin down and reverse a motor
  
 AF_DCMotor motor(2, MOTOR12_64KHZ); // create motor #2, 64KHz pwm
  
-// FORWARD = 1, BACKEWARD = 2, RELEASE = 4 
-const int UP = 1;
-const int DOWN = 2;
-const int STOP = 4;
- 
 int minSpd = 26;
 int maxSpd = 255;
 int spd = minSpd + 1;
@@ -33,9 +28,12 @@ int topSwitchPin = 13;   // NOTE: we cannot use any old pins, most are used by t
 int bottomSwitchPin = 11;
 int lastSwitch;          // which pin fired last.
 
-// INITIAL DIRECTION AND SHOULD WE BE RUNNING. TODO: we need a switch to stop and reset.
-int dir = FORWARD; 
+// Initial direction and should we be running. TODO: we need a switch to stop and reset.
 boolean running = true;
+// FORWARD/UP = 1, BACWARD/DOWN = 2, RELEASE = 4 
+int dir = FORWARD; 
+
+
 
 void setup() {
   time = millis();
@@ -87,11 +85,11 @@ void checkSwitch(int pin, int newDirection) {
 
   if (state == 0){
     
-//    if (pin == lastSwitch){ 
-//      return; // ignore multiple fires of the same pin...
-//    } 
+    if (pin == lastSwitch){ 
+      return; // ignore multiple fires of the same pin...
+    } 
 
-    motor.run(STOP);
+    motor.run(RELEASE);
     
     lastSwitch = pin;
     
@@ -115,7 +113,8 @@ void pauseThenReverse() {
 }
 
 void pauseThenGo(int newDirection) {
-  motor.run(STOP);
+  motor.run(RELEASE);
+  spd = minSpd;
   
   maxStarted = 0; // clean up just in case.
   

@@ -29,9 +29,9 @@ unsigned long lastTime;
 unsigned long diffTime;
 unsigned long maxStarted;
 
-int topSwitchPin = 13;
-int bottomSwitchPin = 2;
-int lastSwitch; // which pin fired last.
+int topSwitchPin = 13;   // NOTE: we cannot use any old pins, most are used by the sheild.
+int bottomSwitchPin = 11;
+int lastSwitch;          // which pin fired last.
 
 // INITIAL DIRECTION AND SHOULD WE BE RUNNING. TODO: we need a switch to stop and reset.
 int dir = FORWARD; 
@@ -87,9 +87,9 @@ void checkSwitch(int pin, int newDirection) {
 
   if (state == 0){
     
-    if (pin == lastSwitch){ 
-      return; // ignore multiple fires of the same pin...
-    } 
+//    if (pin == lastSwitch){ 
+//      return; // ignore multiple fires of the same pin...
+//    } 
 
     motor.run(STOP);
     

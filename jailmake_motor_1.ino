@@ -17,9 +17,9 @@ const int UP = 1;
 const int DOWN = 2;
 const int STOP = 4;
  
-int spd = 1;
-int minSpd = 0;
+int minSpd = 26;
 int maxSpd = 255;
+int spd = minSpd + 1;
 int acceleration = 1;
 int loopDelay = 50;
 int pause = 3000;

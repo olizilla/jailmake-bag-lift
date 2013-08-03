@@ -12,7 +12,7 @@ Graccefully spin up, run, spin down and reverse a motor
  
 AF_DCMotor motor(2, MOTOR12_64KHZ); // create motor #2, 64KHz pwm
  
-int minSpd = 26;
+int minSpd = 25;
 int maxSpd = 255;
 int spd = minSpd + 1;
 int acceleration = 1;
@@ -26,14 +26,13 @@ unsigned long maxStarted;
 
 int topSwitchPin = 13;   // NOTE: we cannot use any old pins, most are used by the sheild.
 int bottomSwitchPin = 11;
-int lastSwitch;          // which pin fired last.
+int lastSwitch;               // which pin fired last.
+unsigned long lastSwitchTime = 0; // when did it fire?
 
 // Initial direction and should we be running. TODO: we need a switch to stop and reset.
 boolean running = true;
 // FORWARD/UP = 1, BACWARD/DOWN = 2, RELEASE = 4 
-int dir = FORWARD; 
-
-
+int dir = BACKWARD; 
 
 void setup() {
   time = millis();
@@ -43,7 +42,7 @@ void setup() {
   pinMode(topSwitchPin, INPUT);
   pinMode(bottomSwitchPin, INPUT);
   
-  delay(2000);
+  delay(1000);
   Serial.print("Setup: ");
   logState();
 }
@@ -77,6 +76,12 @@ void changeSpeed(){
 void checkSwitches(){
   checkSwitch(topSwitchPin, BACKWARD);
   checkSwitch(bottomSwitchPin, FORWARD);
+  
+  time = millis();
+  
+  if(lastSwitchTime > 0 && time - lastSwitchTime >= 6000){
+    lastSwitch = 0; // clear the switch guard.
+  }
 }
 
 // Switch helper method to reduce the boilerplate
@@ -92,6 +97,7 @@ void checkSwitch(int pin, int newDirection) {
     motor.run(RELEASE);
     
     lastSwitch = pin;
+    lastSwitchTime = millis();
     
     Serial.print("Switching pin: ");
     Serial.print(pin);
@@ -122,12 +128,11 @@ void pauseThenGo(int newDirection) {
   logState();
   
   dir = newDirection;
-  acceleration = acceleration * -1; // flip accel to decel.
+  acceleration = 1; // flip to accel.
   
   delay(pause);
   
   changeSpeed();
-  motor.run(dir);
   
   Serial.print("Go:       ");
   logState();
@@ -147,7 +152,7 @@ void runAtMax(){
 
   if (currentMillis - maxStarted >= duration){  // time to start slowing down.
       maxStarted = 0;
-      acceleration = acceleration * -1;         // flip accel to decel.
+      acceleration = -1;         // flip accel to decel.
       changeSpeed();
 
       Serial.print("Max stop: ");

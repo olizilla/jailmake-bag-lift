@@ -7,6 +7,7 @@ Graccefully spin up, run, spin down and reverse a motor
 - decelerate to `minsSpd`
 - pause for `rest` ms
 - flip the direction, rinse & repeat.
+- Motor speed 26 is unloaded min spd... no motion at 26.
 */
  
 AF_DCMotor motor(2, MOTOR12_64KHZ); // create motor #2, 64KHz pwm
@@ -16,7 +17,7 @@ const int UP = 1;
 const int DOWN = 2;
 const int STOP = 4;
  
-int spd = 0;
+int spd = 1;
 int minSpd = 0;
 int maxSpd = 255;
 int acceleration = 1;
@@ -28,12 +29,12 @@ unsigned long lastTime;
 unsigned long diffTime;
 unsigned long maxStarted;
 
-int topSwitchPin = 6;
-int bottomSwitchPin = 3;
+int topSwitchPin = 13;
+int bottomSwitchPin = 2;
 int lastSwitch; // which pin fired last.
 
 // INITIAL DIRECTION AND SHOULD WE BE RUNNING. TODO: we need a switch to stop and reset.
-int dir = UP; 
+int dir = FORWARD; 
 boolean running = true;
 
 void setup() {
@@ -44,8 +45,8 @@ void setup() {
   pinMode(topSwitchPin, INPUT);
   pinMode(bottomSwitchPin, INPUT);
   
-  logState();
   delay(2000);
+  Serial.print("Setup: ");
   logState();
 }
  
@@ -59,26 +60,9 @@ void loop() {
       pauseThenReverse();         // Time to pause and reverse.
       
     } else if (spd >= maxSpd) {   // At max speed.
-      spd = maxSpd;    
-      
-      if(maxStarted == 0){     // We just got to maxSpeed so record the startTime.
-        maxStarted = millis();
-        
-        Serial.print("Max start: ");
-        logState();
-      }
-      
-      unsigned long currentMillis = millis();
-      if (currentMillis - maxStarted >= duration){  // time to start slowing down.
-          maxStarted = 0;
-          acceleration = acceleration * -1;         // flip accel to decel.
-          changeSpeed();
-    
-          Serial.print("Max stop:  ");
-          logState();          
-      }
-      
-    } else {                      // accelerating / decelerating
+       runAtMax();
+       
+    } else {                      // accelerating / decelerating      
       changeSpeed();
       delay(loopDelay);
     }
@@ -88,20 +72,24 @@ void loop() {
 void changeSpeed(){
   spd = constrain(spd + acceleration, minSpd, maxSpd);
   motor.setSpeed(spd);
+  motor.run(dir);
 }
 
 // Switches signal that we've gone as far as we can and so force a pause and reverse.
 void checkSwitches(){
-  checkSwitch(topSwitchPin, DOWN);
-  checkSwitch(bottomSwitchPin, UP);
+  checkSwitch(topSwitchPin, BACKWARD);
+  checkSwitch(bottomSwitchPin, FORWARD);
 }
 
 // Switch helper method to reduce the boilerplate
 void checkSwitch(int pin, int newDirection) {
   int state = digitalRead(pin);
+
   if (state == 0){
     
-    if (pin == lastSwitch){ return; } // ignore multiple fires of the same pin...
+    if (pin == lastSwitch){ 
+      return; // ignore multiple fires of the same pin...
+    } 
 
     motor.run(STOP);
     
@@ -119,10 +107,10 @@ void checkSwitch(int pin, int newDirection) {
 }
 
 void pauseThenReverse() {
-    if (dir == UP) {
-      pauseThenGo(DOWN);
+    if (dir == FORWARD) {
+      pauseThenGo(BACKWARD);
     } else {
-      pauseThenGo(UP);
+      pauseThenGo(FORWARD);
     }
 }
 
@@ -146,6 +134,28 @@ void pauseThenGo(int newDirection) {
   logState();
 }
 
+void runAtMax(){
+  spd = maxSpd;    
+  
+  if(maxStarted == 0){     // We just got to maxSpeed so record the startTime.
+    maxStarted = millis();
+    
+    Serial.print("Max start:");
+    logState();
+  }
+  
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - maxStarted >= duration){  // time to start slowing down.
+      maxStarted = 0;
+      acceleration = acceleration * -1;         // flip accel to decel.
+      changeSpeed();
+
+      Serial.print("Max stop: ");
+      logState();          
+  }
+}
+
 void logState(){
   Serial.print("Time: ");
   lastTime = time;
@@ -155,6 +165,8 @@ void logState(){
   Serial.print(diffTime);
   Serial.print(" spd:"); 
   Serial.print(spd); 
+  Serial.print(" dir:"); 
+  Serial.print(dir);  
   Serial.println();
 }
 

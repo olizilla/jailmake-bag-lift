@@ -17,8 +17,8 @@ int maxSpd = 255;
 int spd = minSpd + 1;
 int acceleration = 1;
 int loopDelay = 50;
-int pause = 3000;
-unsigned long duration = 4000;
+int pause = 10000;
+unsigned long duration = 5000;
 unsigned long time;
 unsigned long lastTime;
 unsigned long diffTime;
@@ -79,7 +79,9 @@ void checkSwitches(){
   
   time = millis();
   
-  if(lastSwitchTime > 0 && time - lastSwitchTime >= 6000){
+  int wait = pause + 5000;
+  
+  if(lastSwitchTime > 0 && time - lastSwitchTime >= wait){
     lastSwitch = 0; // clear the switch guard.
   }
 }

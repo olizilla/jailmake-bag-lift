@@ -18,10 +18,11 @@ int minSpd = 25;
 int maxSpd = 255;
 int spd = minSpd + 1;
 int acceleration = 1;
-int loopDelay = 50;
-int pause = 10000;
-unsigned long duration = 1000;
-unsigned long accelDuration = 5000;
+
+int pause = 10000;                   // Time at rest in ms
+unsigned long duration = 15000;      // Time at max speed in ms
+unsigned long accelDuration = 10000; // time to go from min to max speed. Will be shorter if we hit a switch
+
 unsigned long accelStart;
 unsigned long time;
 unsigned long lastTime;
@@ -46,7 +47,7 @@ unsigned long lastSwitchTime = 0; // when did it fire?
 // Initial direction and should we be running. TODO: we need a switch to stop and reset.
 boolean running = true;
 // FORWARD/UP = 1, BACWARD/DOWN = 2, RELEASE = 4 
-int dir = FORWARD; 
+int dir = BACKWARD;
 
 void setup() {
   Serial.begin(9600);           // set up Serial library at 9600 bps
@@ -55,7 +56,7 @@ void setup() {
   pinMode(topSwitchPin, INPUT);
   pinMode(bottomSwitchPin, INPUT);
   
-  delay(1000);
+  delay(2000);
   Serial.print("Setup: ");
   logState();
 }

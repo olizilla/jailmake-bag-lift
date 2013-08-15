@@ -9,33 +9,46 @@ Graccefully spin up, run, spin down and reverse a motor
 - flip the direction, rinse & repeat.
 - Motor speed 26 is unloaded min spd... no motion at 26.
 */
- 
-AF_DCMotor motor(2, MOTOR12_64KHZ); // create motor #2, 64KHz pwm
- 
+
+// create motor #2, 64KHz pwm
+//AF_DCMotor motor(2, MOTOR12_64KHZ); 
+AF_DCMotor motor(2, MOTOR12_1KHZ); 
+
 int minSpd = 25;
 int maxSpd = 255;
 int spd = minSpd + 1;
 int acceleration = 1;
 int loopDelay = 50;
 int pause = 10000;
-unsigned long duration = 5000;
+unsigned long duration = 1000;
+unsigned long accelDuration = 5000;
+unsigned long accelStart;
 unsigned long time;
 unsigned long lastTime;
+unsigned long lastLog;
 unsigned long diffTime;
 unsigned long maxStarted;
 
-int topSwitchPin = 13;   // NOTE: we cannot use any old pins, most are used by the sheild.
-int bottomSwitchPin = 11;
+/*
+A0 = digital pin 14
+A1 = digital pin 15
+A2 = digital pin 16
+A3 = digital pin 17
+A4 = digital pin 18
+A5 = digital pin 19
+*/
+int topSwitchPin = 19;   // NOTE: we cannot use any old pins, most are used by the sheild.
+int bottomSwitchPin = 17;
+
 int lastSwitch;               // which pin fired last.
 unsigned long lastSwitchTime = 0; // when did it fire?
 
 // Initial direction and should we be running. TODO: we need a switch to stop and reset.
 boolean running = true;
 // FORWARD/UP = 1, BACWARD/DOWN = 2, RELEASE = 4 
-int dir = BACKWARD; 
+int dir = FORWARD; 
 
 void setup() {
-  time = millis();
   Serial.begin(9600);           // set up Serial library at 9600 bps
   motor.setSpeed(0);            // set the speed to 200/255
   
@@ -51,6 +64,8 @@ void loop() {
 
   if(running){
     
+    time = millis();
+    
     checkSwitches();
     
     if (spd <= minSpd) {          // At rest.    
@@ -60,10 +75,28 @@ void loop() {
        runAtMax();
        
     } else {                      // accelerating / decelerating      
-      changeSpeed();
-      delay(loopDelay);
+//      changeSpeed();
+//      delay(loopDelay);
+      accelerate(accelStart, time);
+      if (lastLog == 0 || time - lastLog >= 1000) {
+        lastLog = time;
+        Serial.print("new speed:" );
+        Serial.print(spd);
+        Serial.println();
+      }      
     }
   }  
+}
+
+void accelerate(long start, long now) {
+  long t = constrain(now - start, 0, accelDuration);
+  if (acceleration == 1){
+      spd = map(t, 0, accelDuration, minSpd +1 , maxSpd);
+  } else {
+      spd = map(t, 0, accelDuration, maxSpd - 1, minSpd);
+  }  
+  motor.setSpeed(spd);
+  motor.run(dir);
 }
 
 void changeSpeed(){
@@ -76,8 +109,6 @@ void changeSpeed(){
 void checkSwitches(){
   checkSwitch(topSwitchPin, BACKWARD);
   checkSwitch(bottomSwitchPin, FORWARD);
-  
-  time = millis();
   
   int wait = pause + 5000;
   
@@ -136,6 +167,8 @@ void pauseThenGo(int newDirection) {
   
   changeSpeed();
   
+  accelStart = millis();
+  
   Serial.print("Go:       ");
   logState();
 }
@@ -149,14 +182,13 @@ void runAtMax(){
     Serial.print("Max start:");
     logState();
   }
-  
-  unsigned long currentMillis = millis();
 
-  if (currentMillis - maxStarted >= duration){  // time to start slowing down.
+  if (time - maxStarted >= duration){  // time to start slowing down.
       maxStarted = 0;
       acceleration = -1;         // flip accel to decel.
       changeSpeed();
-
+      accelStart = time;
+      
       Serial.print("Max stop: ");
       logState();          
   }
@@ -165,7 +197,6 @@ void runAtMax(){
 void logState(){
   Serial.print("Time: ");
   lastTime = time;
-  time = millis();
   diffTime = time - lastTime;
   //prints time since program started
   Serial.print(diffTime);
